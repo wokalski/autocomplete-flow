@@ -49,7 +49,7 @@ class Completer(object):
             return json['name']
             
         # If not using neosnippet
-        if not self.__vim.vars['neosnippet#enable_completed_snippet']:
+        if not self.__vim.vars.get('neosnippet#enable_completed_snippet'):
             return json['name'] + '('
 
         def buildArgumentList(arg):
