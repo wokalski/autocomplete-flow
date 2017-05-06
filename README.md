@@ -31,6 +31,16 @@ let g:neosnippet#enable_completed_snippet = 1
 
 ```
 
+## Configuration
+
+If neosnippet integration is not enabled, this plugin will insert an opening
+paren when completing a function name.
+Add this line to your configuration to disable that behavior:
+
+```vimL
+let g:autocomplete_flow#insert_paren_after_function = 0
+```
+
 ## Credits
 
 The initial version is based on [autocomplete-swift](https://github.com/mitsuse/autocomplete-swift). Thanks to @SeeThruHead for the vim script to find flow-bin.

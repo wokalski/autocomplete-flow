@@ -14,3 +14,9 @@ if executable(local_flow)
 else
   let g:autocomplete_flow#flowbin = 'flow'
 endif
+
+" If the user does not use neosnippet, insert a paren when completing a function
+" name by default
+if !exists("g:autocomplete_flow#insert_paren_after_function")
+  let g:autocomplete_flow#insert_paren_after_function = 1
+endif
