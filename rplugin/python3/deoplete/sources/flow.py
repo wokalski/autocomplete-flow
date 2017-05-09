@@ -50,7 +50,10 @@ class Completer(object):
             
         # If not using neosnippet
         if not self.__vim.vars.get('neosnippet#enable_completed_snippet'):
-            return json['name'] + '('
+            if self.__vim.vars.get('autocomplete_flow#insert_paren_after_function'):
+                return json['name'] + '('
+            else:
+                return json['name']
 
         def buildArgumentList(arg):
             index, paramDesc = arg
