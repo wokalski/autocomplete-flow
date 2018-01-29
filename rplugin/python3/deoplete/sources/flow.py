@@ -1,7 +1,20 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+import os
 from .base import Base
+
+CONFIG_FILE = '.flowconfig'
+
+# Find closest configuration directory recursively.
+# Borrows from https://github.com/steelsojka/deoplete-flow/pull/9/files
+def find_config_dir(dir):
+    if CONFIG_FILE in os.listdir(dir):
+        return dir
+    elif dir == '/':
+        return None
+    else:
+        return find_config_dir(os.path.dirname(dir))
 
 class Source(Base):
     def __init__(self, vim):
@@ -12,15 +25,36 @@ class Source(Base):
         self.min_pattern_length = 2
         self.rank = 10000
         self.input_pattern = '((?:\.|(?:,|:|->)\s+)\w*|\()'
+        self._relatives = {}
         self.__completer = Completer(vim)
+
+    def on_event(self, context):
+        if context['event'] == 'BufRead' or context['event'] == 'BufNewFile':
+            try:
+                # Cache relative path from closest configuration directory.
+                self.relative()
+                pass
+            except Exception:
+                pass
 
     def get_complete_position(self, context):
         return self.__completer.determineCompletionPosition(context)
 
     def gather_candidates(self, context):
         return self.__completer.find_candidates(
-            context
+            context,
+            self.relative()
         )
+
+    def relative(self):
+        filename = self.vim.eval("expand('%:p')")
+        if filename in self._relatives:
+            return self._relatives[filename]
+        config_dir = find_config_dir(os.path.dirname(filename))
+        if not config_dir:
+            return None
+        self._relatives[filename] = os.path.relpath(filename, config_dir)
+        return filename
 
 class Completer(object):
     def __init__(self, vim):
@@ -47,7 +81,7 @@ class Completer(object):
         # If not a function
         if not json['func_details']:
             return json['name']
-            
+
         # If not using neosnippet
         if not self.__vim.vars.get('neosnippet#enable_completed_snippet'):
             if self.__vim.vars.get('autocomplete_flow#insert_paren_after_function'):
@@ -62,14 +96,17 @@ class Completer(object):
         params = map(buildArgumentList, enumerate(json['func_details']['params']))
         return json['name'] + '(' + ', '.join(params) + ')'
 
-    def find_candidates(self, context):
-        from subprocess import Popen, PIPE 
+    def find_candidates(self, context, relative):
+        from subprocess import Popen, PIPE
         import json
 
         line = str(self.__vim.current.window.cursor[0])
         column = str(self.__vim.current.window.cursor[1] + 1)
-        command = [self.get_flowbin(), 'autocomplete', '--json', line, column]
-        
+        if relative:
+            command = [self.get_flowbin(), 'autocomplete', '--json', relative, line, column]
+        else:
+            command = [self.get_flowbin(), 'autocomplete', '--json', line, column]
+
         buf = '\n'.join(self.__vim.current.buffer[:])
 
         try:
