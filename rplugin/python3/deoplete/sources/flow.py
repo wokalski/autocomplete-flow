@@ -26,6 +26,7 @@ class Source(Base):
         self.rank = 10000
         self.input_pattern = '((?:\.|(?:,|:|->)\s+)\w*|\()'
         self._relatives = {}
+        self._config_dirs = {}
         self.__completer = Completer(vim)
 
     def on_event(self, context):
@@ -41,20 +42,19 @@ class Source(Base):
         return self.__completer.determineCompletionPosition(context)
 
     def gather_candidates(self, context):
-        return self.__completer.find_candidates(
-            context,
-            self.relative()
-        )
+        rel, cfg_dir = self.relative()
+        return self.__completer.find_candidates(context, rel, cfg_dir)
 
     def relative(self):
         filename = self.vim.eval("expand('%:p')")
         if filename in self._relatives:
-            return self._relatives[filename]
+            return (self._relatives[filename], self._config_dirs[filename])
         config_dir = find_config_dir(os.path.dirname(filename))
         if not config_dir:
-            return None
+            return (None, None)
         self._relatives[filename] = os.path.relpath(filename, config_dir)
-        return filename
+        self._config_dirs[filename] = config_dir
+        return (filename, config_dir)
 
 class Completer(object):
     def __init__(self, vim):
@@ -96,7 +96,7 @@ class Completer(object):
         params = map(buildArgumentList, enumerate(json['func_details']['params']))
         return json['name'] + '(' + ', '.join(params) + ')'
 
-    def find_candidates(self, context, relative):
+    def find_candidates(self, context, relative, config_dir):
         from subprocess import Popen, PIPE
         import json
 
@@ -110,7 +110,7 @@ class Completer(object):
         buf = '\n'.join(self.__vim.current.buffer[:])
 
         try:
-            process = Popen(command, stdout=PIPE, stdin=PIPE)
+            process = Popen(command, cwd=config_dir, stdout=PIPE, stdin=PIPE)
             command_results = process.communicate(input=str.encode(buf))[0]
 
             if process.returncode != 0:
